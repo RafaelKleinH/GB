@@ -134,25 +134,25 @@ GLuint generateCharacterVAO(float th, float tw)
 {
     float vertices[] = {
         xi + tw,
-        yi + th + th / 2.0f,
+        yi + th + th / 4.0f,
         0.0f,
         ds,
         dt,
 
         xi,
-        yi + th / 2.0f,
+        yi + th / 4.0f,
         0.0f,
         0.0f,
         0.0f,
 
         xi + tw,
-        yi + th / 2.0f,
+        yi + th / 4.0f,
         0.0f,
         ds,
         0.0f,
 
         xi,
-        yi + th + th / 2.0f,
+        yi + th + th / 4.0f,
         0.0f,
         0.0f,
         dt,
@@ -233,7 +233,7 @@ int main()
     GLuint tex;
     loadTexture(tex, "sprite.png");
     character.setTexture(tex);
-    GLuint characterVAO = generateCharacterVAO(th, tw);
+    GLuint characterVAO = generateCharacterVAO(tw, tw);
 
     char vertex_shader[1024 * 256];
     char fragment_shader[1024 * 256];
@@ -435,6 +435,7 @@ int main()
             animating = true;
             previous = current_seconds;
             userX += 1;
+                     action = 2;
             // cout << "E" << endl;
         }
 
@@ -444,6 +445,7 @@ int main()
             animating = true;
             previous = current_seconds;
             userY -= 1;
+                     action = 2;
             // cout << "Q" << endl;
         }
 
