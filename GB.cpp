@@ -286,7 +286,7 @@ int main()
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
     int actualFrame = 0;
-    int action = 3; // 0: down, 1: left, 2: up, 3: right
+    int action = 3;
     float previous = glfwGetTime();
     bool animating = false;
 
@@ -322,8 +322,13 @@ int main()
                 float offsetx = u * tileW;
                 if (userX == c && userY == r)
                 {
-                    characterTx = x;
-                    characterTy = y + 1.0f;
+                    if (x != characterTx) {
+                        characterTx += (x - characterTx) / 6.0f;
+                    }
+
+                    if (y != characterTy) {
+                        characterTy += (y - characterTy) / 6.0f;
+                    }
                 }
                 cout << "3 " << endl;
                 glUniform1f(glGetUniformLocation(shaderProgram, "offsetx"), offsetx);
@@ -352,7 +357,7 @@ int main()
         glUniform1f(glGetUniformLocation(shaderProgram, "tx"), characterTx);
         glUniform1f(glGetUniformLocation(shaderProgram, "ty"), characterTy);
 
-        if ((current_seconds - previous) > (0.32), animating)
+        if ((current_seconds - previous) > (0.16), animating)
         {
             previous = current_seconds;
 
