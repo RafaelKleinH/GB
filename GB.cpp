@@ -453,6 +453,7 @@ int main()
             animating = true;
             previous = current_seconds;
             userY += 1;
+            action = 1;
             // cout << "C" << endl;
         }
 
@@ -462,6 +463,7 @@ int main()
             animating = true;
             previous = current_seconds;
             userX -= 1;
+             action = 0;
             // cout << "Z" << endl;
         }
 
