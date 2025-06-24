@@ -38,7 +38,7 @@ float ds = 1.0 / 8.0;
 float dt = 1.0 / 4.0;
 
 int userX = 0;
-int userY = 7;
+int userY = 0;
 
 TileMap *tmap = NULL;
 
@@ -84,21 +84,24 @@ GLuint generateTileVAO(float th, float tw, float th2, float tileH2, float tileH,
         0.0f,
         0.0f,
         tileH2,
+
         xi + tw2,
         yi,
         0.0f,
         tileW2,
         0.0f,
+
         xi + tw,
         yi + th2,
         0.0f,
         tileW,
         tileH2,
+
         xi + tw2,
         yi + th,
         0.0f,
         tileW2,
-        tileH,
+        tileH
     };
 
     unsigned int indices[] = {
@@ -127,35 +130,38 @@ GLuint generateTileVAO(float th, float tw, float th2, float tileH2, float tileH,
     return VAO;
 }
 
-GLuint generateCharacterVAO()
+GLuint generateCharacterVAO(float th, float tw)
 {
     float vertices[] = {
-        0.5f,
-        0.5f,
-        0.0f,
-        ds,
-        0.0f,
-        0.5f,
-        -0.5f,
+        xi + tw,
+        yi + th + th / 2.0f,
         0.0f,
         ds,
         dt,
-        -0.5f,
-        -0.5f,
-        0.0f,
-        0.0f,
-        dt,
-        -0.5f,
-        0.5f,
+
+        xi,
+        yi + th / 2.0f,
         0.0f,
         0.0f,
         0.0f,
 
+        xi + tw,
+        yi + th / 2.0f,
+        0.0f,
+        ds,
+        0.0f,
+
+        xi,
+        yi + th + th / 2.0f,
+        0.0f,
+        0.0f,
+        dt,
+    
     };
 
     unsigned int indices[] = {
         2, 1, 0,
-        0, 3, 2};
+        0, 3, 1};
 
     GLuint VAO, VBO, EBO;
     glGenVertexArrays(1, &VAO);
@@ -227,7 +233,7 @@ int main()
     GLuint tex;
     loadTexture(tex, "sprite.png");
     character.setTexture(tex);
-    GLuint characterVAO = generateCharacterVAO();
+    GLuint characterVAO = generateCharacterVAO(th, tw);
 
     char vertex_shader[1024 * 256];
     char fragment_shader[1024 * 256];
@@ -280,8 +286,9 @@ int main()
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
     int actualFrame = 0;
-    int action = 0;
+    int action = 3; // 0: down, 1: left, 2: up, 3: right
     float previous = glfwGetTime();
+    bool animating = false;
 
     while (!glfwWindowShouldClose(g_window))
     {
@@ -300,6 +307,8 @@ int main()
         cout << "2 " << endl;
         glBindVertexArray(tileVAO);
         float x, y;
+        float characterTx = 0.0f;
+        float characterTy = 0.0f;
         for (int r = 0; r < tmap->getHeight(); r++)
         {
             for (int c = 0; c < tmap->getWidth(); c++)
@@ -311,11 +320,11 @@ int main()
                 tmap->computeDrawPosition(c, r, tw, th, x, y);
 
                 float offsetx = u * tileW;
-                // if (userX == c && userY == r)
-                // {
-
-                //     offsetx = 6.0f * tileW; // desloca o tile selecionado para a direita
-                // }
+                if (userX == c && userY == r)
+                {
+                    characterTx = x;
+                    characterTy = y + 1.0f;
+                }
                 cout << "3 " << endl;
                 glUniform1f(glGetUniformLocation(shaderProgram, "offsetx"), offsetx);
                 glUniform1f(glGetUniformLocation(shaderProgram, "offsety"), v * tileH);
@@ -330,29 +339,34 @@ int main()
             }
             cout << "4 " << endl;
         }
-        glfwPollEvents();
+
+
+        character.setOffsetX(ds * (float)actualFrame);
+        character.setOffsetY(dt * (float)action);
 
         cout << "5 " << endl;
         glBindVertexArray(characterVAO);
         glUniform1f(glGetUniformLocation(shaderProgram, "offsetx"), character.getOffsetX());
         glUniform1f(glGetUniformLocation(shaderProgram, "offsety"), character.getOffsetY());
         glUniform1f(glGetUniformLocation(shaderProgram, "layer_z"), 0.50f);
-        glUniform1f(glGetUniformLocation(shaderProgram, "tx"), 0.0);
-        glUniform1f(glGetUniformLocation(shaderProgram, "ty"), 0.0);
+        glUniform1f(glGetUniformLocation(shaderProgram, "tx"), characterTx);
+        glUniform1f(glGetUniformLocation(shaderProgram, "ty"), characterTy);
 
-        // if ((current_seconds - previous) > (0.32))
-        // {
-        //     previous = current_seconds;
+        if ((current_seconds - previous) > (0.32), animating)
+        {
+            previous = current_seconds;
 
-        //     if (actualFrame == 8)
-        //     {
-        //         action = (4 + (action - 1)) % 4;
-        //         actualFrame = 0;
-        //     }
-        //     else
-        //     {
-        //         actualFrame = (actualFrame + 1) % 8;
-        //     }
+            if (actualFrame == 8)
+            {
+                action = (4 + (action - 1)) % 4;
+                actualFrame = 0;
+            }
+            else
+            {
+                actualFrame = (actualFrame + 1) % 8;
+            }
+        }
+
         cout << "6 " << endl;
         character.setOffsetX(ds * (float)actualFrame);
         character.setOffsetY(dt * (float)action);
@@ -361,7 +375,7 @@ int main()
         glBindTexture(GL_TEXTURE_2D, character.getTexture());
         glUniform1i(glGetUniformLocation(shaderProgram, "sprite"), 0);
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-        //}
+        
 
         cout << "8 " << endl;
 
@@ -371,94 +385,103 @@ int main()
         cout << "11 " << endl;
         glfwSwapBuffers(g_window);
 
+       int w = glfwGetKey(g_window, GLFW_KEY_W);
+        int a = glfwGetKey(g_window, GLFW_KEY_A);
+        int s = glfwGetKey(g_window, GLFW_KEY_S);
+        int d = glfwGetKey(g_window, GLFW_KEY_D);
+        int e = glfwGetKey(g_window, GLFW_KEY_E);
+        int q = glfwGetKey(g_window, GLFW_KEY_Q);
+        int c = glfwGetKey(g_window, GLFW_KEY_C);
+        int z = glfwGetKey(g_window, GLFW_KEY_Z);
+        cout << "10 " << endl;
+        if (GLFW_PRESS == glfwGetKey(g_window, GLFW_KEY_ESCAPE))
+        {
+
+            glfwSetWindowShouldClose(g_window, 1);
+        }
+
+        // E NE
+        if (e == GLFW_PRESS && userX < tmap->getWidth() - 1 && (current_seconds - previous) > (0.16) && !animating)
+        {
+            animating = true;
+            previous = current_seconds;
+            userX += 1;
+            cout << "E" << endl;
+        }
+
+        // Q NO
+        if (q == GLFW_PRESS && userY > 0 && (current_seconds - previous) > (0.16) && !animating)
+        {
+            animating = true;
+            previous = current_seconds;
+            userY -= 1;
+            cout << "Q" << endl;
+        }
+
+        // C SE
+        if (c == GLFW_PRESS && userY < tmap->getHeight() - 1 && (current_seconds - previous) > (0.16) && !animating)
+        {
+            animating = true;
+            previous = current_seconds;
+            userY += 1;
+            cout << "C" << endl;
+        }
+
+        // Z SO
+        if (z == GLFW_PRESS && userX > 0 && (current_seconds - previous) > (0.16) && !animating)
+        {
+            animating = true;
+            previous = current_seconds;
+            userX -= 1;
+            cout << "Z" << endl;
+        }
+
+        // S
+        if (s == GLFW_PRESS && d != GLFW_PRESS && a != GLFW_PRESS && userY < tmap->getHeight() - 1 && userX > 0 && (current_seconds - previous) > (0.16) && !animating)
+        {
+            animating = true;
+            previous = current_seconds;
+            userY += 1;
+            userX -= 1;
+            cout << "S" << endl;
+        }
+
+        // W
+        if (w == GLFW_PRESS && d != GLFW_PRESS && a != GLFW_PRESS && userY > 0 && userX < tmap->getWidth() - 1 && (current_seconds - previous) > (0.16) && !animating)
+        {
+            animating = true;
+            previous = current_seconds;
+            userY -= 1;
+            userX += 1;
+            cout << "W" << endl;
+        }
+
+        // A
+        if (a == GLFW_PRESS && userX > 0 && userY > 0 && (current_seconds - previous) > (0.16) && !animating)
+        {
+            animating = true;
+            previous = current_seconds;
+            userX -= 1;
+            userY -= 1;
+            cout << "A" << endl;
+        }
+
+        // D
+        if (d == GLFW_PRESS && userX < tmap->getWidth() - 1 && userY < tmap->getHeight() - 1 && (current_seconds - previous) > (0.16) && !animating)
+        {
+            animating = true;
+            previous = current_seconds;
+            userX += 1;
+            userY += 1;
+            cout << "D" << endl;
+        }
     }
+
 
         glfwDestroyWindow(g_window);
         glfwTerminate();
         return 0;
 }
-
 // void verifyKeyboard(window *g_window, float &previous, int &userX, int &userY) {
-//          int w = glfwGetKey(g_window, GLFW_KEY_W);
-//         int a = glfwGetKey(g_window, GLFW_KEY_A);
-//         int s = glfwGetKey(g_window, GLFW_KEY_S);
-//         int d = glfwGetKey(g_window, GLFW_KEY_D);
-//         int e = glfwGetKey(g_window, GLFW_KEY_E);
-//         int q = glfwGetKey(g_window, GLFW_KEY_Q);
-//         int c = glfwGetKey(g_window, GLFW_KEY_C);
-//         int z = glfwGetKey(g_window, GLFW_KEY_Z);
-//         cout << "10 " << endl;
-//         if (GLFW_PRESS == glfwGetKey(g_window, GLFW_KEY_ESCAPE))
-//         {
-
-//             glfwSetWindowShouldClose(g_window, 1);
-//         }
-
-//         // E NE
-//         if (e == GLFW_PRESS && userX < tmap->getWidth() - 1 && (current_seconds - previous) > (0.16))
-//         {
-//             previous = current_seconds;
-//             userX += 1;
-//             cout << "E" << endl;
-//         }
-
-//         // Q NO
-//         if (q == GLFW_PRESS && userY > 0 && (current_seconds - previous) > (0.16))
-//         {
-//             previous = current_seconds;
-//             userY -= 1;
-//             cout << "Q" << endl;
-//         }
-
-//         // C SE
-//         if (c == GLFW_PRESS && userY < tmap->getHeight() - 1 && (current_seconds - previous) > (0.16))
-//         {
-//             previous = current_seconds;
-//             userY += 1;
-//             cout << "C" << endl;
-//         }
-
-//         // Z SO
-//         if (z == GLFW_PRESS && userX > 0 && (current_seconds - previous) > (0.16))
-//         {
-//             previous = current_seconds;
-//             userX -= 1;
-//             cout << "Z" << endl;
-//         }
-
-//         // S
-//         if (s == GLFW_PRESS && d != GLFW_PRESS && a != GLFW_PRESS && userY < tmap->getHeight() - 1 && userX > 0 && (current_seconds - previous) > (0.16))
-//         {
-//             previous = current_seconds;
-//             userY += 1;
-//             userX -= 1;
-//             cout << "S" << endl;
-//         }
-//         glfwSetKeyCallback(g_window, NULL);
-//         // W
-//         if (w == GLFW_PRESS && d != GLFW_PRESS && a != GLFW_PRESS && userY > 0 && userX < tmap->getWidth() - 1 && (current_seconds - previous) > (0.16))
-//         {
-//             previous = current_seconds;
-//             userY -= 1;
-//             userX += 1;
-//             cout << "W" << endl;
-//         }
-
-//         // A
-//         if (a == GLFW_PRESS && userX > 0 && userY > 0 && (current_seconds - previous) > (0.16))
-//         {
-//             previous = current_seconds;
-//             userX -= 1;
-//             userY -= 1;
-//             cout << "A" << endl;
-//         }
-
-//         // D
-//         if (d == GLFW_PRESS && userX < tmap->getWidth() - 1 && userY < tmap->getHeight() - 1 && (current_seconds - previous) > (0.16))
-//         {
-//             previous = current_seconds;
-//             userX += 1;
-//             userY += 1;
-//             cout << "D" << endl;
-//         }
+//   
 // }
