@@ -38,7 +38,7 @@ float ds = 1.0 / 8.0;
 float dt = 1.0 / 4.0;
 
 int userX = 0;
-int userY = 0;
+int userY = 7;
 
 TileMap *tmap = NULL;
 
@@ -285,10 +285,19 @@ int main()
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-    int actualFrame = 0;
+    int actualFrame = 7;
     int action = 3;
     float previous = glfwGetTime();
     bool animating = false;
+
+    float targetX = 0.0f;
+    float targetY = 0.0f;
+
+    float previousX = 0.0f;
+    float previousY = 0.0f;
+
+    float characterTx = 0.0f;
+    float characterTy = 0.0f;
 
     while (!glfwWindowShouldClose(g_window))
     {
@@ -302,13 +311,10 @@ int main()
 
         glUseProgram(shaderProgram);
 
-        cout << "1 " << endl;
-
-        cout << "2 " << endl;
         glBindVertexArray(tileVAO);
         float x, y;
-        float characterTx = 0.0f;
-        float characterTy = 0.0f;
+   
+
         for (int r = 0; r < tmap->getHeight(); r++)
         {
             for (int c = 0; c < tmap->getWidth(); c++)
@@ -320,17 +326,21 @@ int main()
                 tmap->computeDrawPosition(c, r, tw, th, x, y);
 
                 float offsetx = u * tileW;
-                if (userX == c && userY == r)
+                if (userX == c && userY == r && animating && characterTx == previousX && characterTy == previousY)
                 {
-                    if (x != characterTx) {
-                        characterTx += (x - characterTx) / 6.0f;
-                    }
-
-                    if (y != characterTy) {
-                        characterTy += (y - characterTy) / 6.0f;
-                    }
+                    previousX = characterTx;
+                    previousY = characterTy;
+                    targetX = x;
+                    targetY = y + 1.0f;
+                } else if(userX == c && userY == r && !animating) {
+                    characterTx = x;
+                    characterTy = y + 1.0f;
+                    targetX = characterTx;
+                    targetY = characterTy;
+                    previousX = characterTx;
+                    previousY = characterTy;
                 }
-                cout << "3 " << endl;
+                
                 glUniform1f(glGetUniformLocation(shaderProgram, "offsetx"), offsetx);
                 glUniform1f(glGetUniformLocation(shaderProgram, "offsety"), v * tileH);
                 glUniform1f(glGetUniformLocation(shaderProgram, "layer_z"), 0.55f);
@@ -342,22 +352,39 @@ int main()
                 glUniform1i(glGetUniformLocation(shaderProgram, "sprite"), 0);
                 glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
             }
-            cout << "4 " << endl;
         }
-
 
         character.setOffsetX(ds * (float)actualFrame);
         character.setOffsetY(dt * (float)action);
 
-        cout << "5 " << endl;
-        glBindVertexArray(characterVAO);
-        glUniform1f(glGetUniformLocation(shaderProgram, "offsetx"), character.getOffsetX());
-        glUniform1f(glGetUniformLocation(shaderProgram, "offsety"), character.getOffsetY());
-        glUniform1f(glGetUniformLocation(shaderProgram, "layer_z"), 0.50f);
-        glUniform1f(glGetUniformLocation(shaderProgram, "tx"), characterTx);
-        glUniform1f(glGetUniformLocation(shaderProgram, "ty"), characterTy);
+        double elapsed = current_seconds - previous;
 
-        if ((current_seconds - previous) > (0.16), animating)
+        character.setOffsetX(ds * (float)actualFrame);
+        character.setOffsetY(dt * (float)action);
+
+        if (elapsed > (0.08) && animating) {
+            if (characterTx < targetX || characterTx > targetX) {
+                characterTx += (targetX - previousX) / 8.0f;
+            } 
+
+            if (characterTy < targetY || characterTy > targetY) {
+                characterTy += (targetY - previousY) / 8.0f;
+            } 
+
+            cout << "Character position: (" << characterTx << ", " << characterTy << ")" << endl;
+            cout << "Target position: (" << targetX << ", " << targetY << ")" << endl;
+            const float EPSILON = 0.0001f;
+            if (fabs(characterTx - targetX) < EPSILON && fabs(characterTy - targetY) < EPSILON) {
+                action = 3; // Reset action to idle; // Reset elapsed time
+                animating = false;
+                previousX = targetX;
+                previousY = targetY;
+                actualFrame = 7;
+                cout << "Animation finished!" << endl;
+            }
+        }
+
+        if (elapsed > (0.08) && animating)
         {
             previous = current_seconds;
 
@@ -372,25 +399,23 @@ int main()
             }
         }
 
-        cout << "6 " << endl;
-        character.setOffsetX(ds * (float)actualFrame);
-        character.setOffsetY(dt * (float)action);
-        cout << "7 " << endl;
+        glBindVertexArray(characterVAO);
+        glUniform1f(glGetUniformLocation(shaderProgram, "offsetx"), character.getOffsetX());
+        glUniform1f(glGetUniformLocation(shaderProgram, "offsety"), character.getOffsetY());
+        glUniform1f(glGetUniformLocation(shaderProgram, "layer_z"), 0.50f);
+        glUniform1f(glGetUniformLocation(shaderProgram, "tx"), characterTx);
+        glUniform1f(glGetUniformLocation(shaderProgram, "ty"), characterTy);
+
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, character.getTexture());
         glUniform1i(glGetUniformLocation(shaderProgram, "sprite"), 0);
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-        
 
-        cout << "8 " << endl;
-
-        cout << "9 " << endl;
         glfwPollEvents();
 
-        cout << "11 " << endl;
         glfwSwapBuffers(g_window);
 
-       int w = glfwGetKey(g_window, GLFW_KEY_W);
+        int w = glfwGetKey(g_window, GLFW_KEY_W);
         int a = glfwGetKey(g_window, GLFW_KEY_A);
         int s = glfwGetKey(g_window, GLFW_KEY_S);
         int d = glfwGetKey(g_window, GLFW_KEY_D);
@@ -398,10 +423,9 @@ int main()
         int q = glfwGetKey(g_window, GLFW_KEY_Q);
         int c = glfwGetKey(g_window, GLFW_KEY_C);
         int z = glfwGetKey(g_window, GLFW_KEY_Z);
-        cout << "10 " << endl;
+
         if (GLFW_PRESS == glfwGetKey(g_window, GLFW_KEY_ESCAPE))
         {
-
             glfwSetWindowShouldClose(g_window, 1);
         }
 
@@ -411,7 +435,7 @@ int main()
             animating = true;
             previous = current_seconds;
             userX += 1;
-            cout << "E" << endl;
+            // cout << "E" << endl;
         }
 
         // Q NO
@@ -420,7 +444,7 @@ int main()
             animating = true;
             previous = current_seconds;
             userY -= 1;
-            cout << "Q" << endl;
+            // cout << "Q" << endl;
         }
 
         // C SE
@@ -429,7 +453,7 @@ int main()
             animating = true;
             previous = current_seconds;
             userY += 1;
-            cout << "C" << endl;
+            // cout << "C" << endl;
         }
 
         // Z SO
@@ -438,7 +462,7 @@ int main()
             animating = true;
             previous = current_seconds;
             userX -= 1;
-            cout << "Z" << endl;
+            // cout << "Z" << endl;
         }
 
         // S
@@ -448,7 +472,8 @@ int main()
             previous = current_seconds;
             userY += 1;
             userX -= 1;
-            cout << "S" << endl;
+            action = 3;
+            // cout << "S" << endl;
         }
 
         // W
@@ -458,7 +483,8 @@ int main()
             previous = current_seconds;
             userY -= 1;
             userX += 1;
-            cout << "W" << endl;
+            action = 2;
+            // cout << "W" << endl;
         }
 
         // A
@@ -468,7 +494,8 @@ int main()
             previous = current_seconds;
             userX -= 1;
             userY -= 1;
-            cout << "A" << endl;
+            action = 0;
+            // cout << "A" << endl;
         }
 
         // D
@@ -478,15 +505,12 @@ int main()
             previous = current_seconds;
             userX += 1;
             userY += 1;
-            cout << "D" << endl;
+            action = 1;
+            // cout << "D" << endl;
         }
     }
 
-
-        glfwDestroyWindow(g_window);
-        glfwTerminate();
-        return 0;
+    glfwDestroyWindow(g_window);
+    glfwTerminate();
+    return 0;
 }
-// void verifyKeyboard(window *g_window, float &previous, int &userX, int &userY) {
-//   
-// }
