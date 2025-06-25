@@ -1,7 +1,8 @@
-class TileMap {
-    float z;               // caso de eventual de vários tilemaps sobrepostos
-    unsigned int tid;      // indicação do tileset utilizado
-    int width, height;     // dimensões da matriz
+class TileMap
+{
+    float z;            // caso de eventual de vários tilemaps sobrepostos
+    unsigned int tid;   // indicação do tileset utilizado
+    int width, height;  // dimensões da matriz
     unsigned char *map; // mapa com ids dos tiles que formam o cenário
     unsigned int *walkable;
     char *fileName; // nome do arquivo de mapa
@@ -11,14 +12,15 @@ class TileMap {
     float xf, yf; // posição final do tile no mapa
 
     // Coin
-    unsigned int * coins;
-    bool collected = false;
-    
+    unsigned int *coins;
+    int totalCoins;
+
 public:
-    TileMap(int w, int h, char *fileName, float tileSetCols, float tileSetRows, float windowsXMax, float tileXMax, float windowsYMax, float tileYMax) {
-        this->map = new unsigned char [w*h];
-        this->walkable = new unsigned int [w*h];
-        this->coins = new unsigned int [w*h];
+    TileMap(int w, int h, char *fileName, float tileSetCols, float tileSetRows, float windowsXMax, float tileXMax, float windowsYMax, float tileYMax)
+    {
+        this->map = new unsigned char[w * h];
+        this->walkable = new unsigned int[w * h];
+        this->coins = new unsigned int[w * h];
         this->width = w;
         this->height = h;
         this->z = 0.0f;
@@ -26,31 +28,38 @@ public:
         this->fileName = fileName;
         this->tileSetCols = tileSetCols;
         this->tileSetRows = tileSetRows;
+        this->totalCoins = 0;
 
         this->setupXs(windowsXMax, tileXMax, windowsYMax, tileYMax);
     }
 
-    unsigned char* getMap() {
+    unsigned char *getMap()
+    {
         return this->map;
     }
-    
-    int getWidth() {
+
+    int getWidth()
+    {
         return this->width;
     }
-    
-    int getHeight() {
+
+    int getHeight()
+    {
         return this->height;
     }
-    
-    int getTile(int col, int row) {
+
+    int getTile(int col, int row)
+    {
         return this->map[col + row * this->width];
     }
-    
-    int getWalkable(int col, int row) {
+
+    int getWalkable(int col, int row)
+    {
         return this->walkable[col + row * this->width];
     }
 
-    int getCoins(int col, int row) {
+    int getCoins(int col, int row)
+    {
         return this->coins[col + row * this->width];
     }
 
@@ -62,15 +71,23 @@ public:
 
     int getTileSet() { return this->tid; }
     float getZ() { return this->z; }
-    char* getFileName() { return fileName; }
+    char *getFileName() { return fileName; }
     int getTileSetCols() { return tileSetCols; }
     int getTileSetRows() { return tileSetRows; }
 
-    void setZ(float z){
+    int getTotalCoins() { return totalCoins; }
+    void setTotalCoins(int totalCoins)
+    {
+        this->totalCoins = totalCoins;
+    }
+
+    void setZ(float z)
+    {
         this->z = z;
     }
-    
-    void setTid(int tid) {
+
+    void setTid(int tid)
+    {
         this->tid = tid;
     }
 
@@ -78,13 +95,15 @@ public:
     float getYi() const { return yi; }
     float getXf() const { return xf; }
     float getYf() const { return yf; }
-    
-    void computeDrawPosition(const int col, const int row, const float tw, const float th, float &targetx, float &targety) const {
+
+    void computeDrawPosition(const int col, const int row, const float tw, const float th, float &targetx, float &targety) const
+    {
         targetx = col * tw / 2 + row * tw / 2;
         targety = col * th / 2 - row * th / 2;
     }
 
-    void setupXs(float windowsXMax, float tileXMax, float windowsYMax, float tileYMax) {
+    void setupXs(float windowsXMax, float tileXMax, float windowsYMax, float tileYMax)
+    {
 
         float xValues = (windowsXMax == tileXMax) ? 1.0f : 2.0f * (tileXMax / windowsXMax) - 1.0f;
         float yValues = (windowsYMax == tileYMax) ? 1.0f : 2.0f * (tileYMax / windowsYMax) - 1.0f;
@@ -93,17 +112,19 @@ public:
         std::cout << "windowsXMax: " << windowsXMax << std::endl;
         std::cout << "windowsYMax: " << windowsYMax << std::endl;
 
-        xi = xValues == 1.0f ? -1.0f : -(1.0f- fabs(xValues));
+        xi = xValues == 1.0f ? -1.0f : -(1.0f - fabs(xValues));
         xf = xValues == 1.0f ? 1.0f : (1.0f - fabs(xValues));
         yi = yValues == 1.0f ? -1.0f : -(1.0f - fabs(yValues));
         yf = yValues == 1.0f ? 1.0f : (1.0f - fabs(yValues));
-        
-        if (xi > xf) {
+
+        if (xi > xf)
+        {
             xi = -xi;
             xf = fabs(xf);
         }
 
-         if (yi > yf) {
+        if (yi > yf)
+        {
             yi = -yi;
             yf = fabs(yf);
         }
@@ -114,4 +135,3 @@ public:
         std::cout << "yf: " << yf << std::endl;
     }
 };
-

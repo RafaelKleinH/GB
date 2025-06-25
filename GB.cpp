@@ -130,6 +130,8 @@ TileMap *readMap(char *filename)
     cout << "Tileset X Frames: " << tilesetXFrames << endl;
     cout << "Total Width: " << totalW << ", Total Height: " << totalH << endl;
     TileMap *tmap = new TileMap(w, h, tileName, tilesetXFrames, 1, (float)g_gl_width, (float)totalW, (float)g_gl_height, (float)totalH);
+
+    int totalCoins = 0;
     for (int r = 0; r < h; r++)
     {
         for (int c = 0; c < w; c++)
@@ -142,9 +144,15 @@ TileMap *readMap(char *filename)
             tmap->setTile(c, h - r - 1, tid);
             tmap->setWalkable(c, h - r - 1, walkable);
             tmap->setCoins(c, h - r - 1, coin);
+
+            if (coin == 1) {
+                totalCoins += 1;
+            }
+           
         }
         cout << endl;
     }
+    tmap->setTotalCoins(totalCoins);
     arq.close();
     return tmap;
 }
@@ -210,6 +218,7 @@ int main()
 
     while (!glfwWindowShouldClose(g_window))
     {
+        bool firstCycle = false;
         bool playing = true;
 
         int coinFrame = 0;
@@ -254,9 +263,11 @@ int main()
         coin.setTexture(coinTex);
         GLuint coinVAO = coin.generateCoinVAO(tmap->getXi(), tmap->getYi(), tw, tw);
 
+        float coinsCollected = 0;
+        
+
         while (!glfwWindowShouldClose(g_window) && playing)
         {
-
             _update_fps_counter(g_window);
             double current_seconds = glfwGetTime();
 
@@ -270,6 +281,8 @@ int main()
 
             for (int r = 0; r < tmap->getHeight(); r++)
             {
+
+                
                 for (int c = 0; c < tmap->getWidth(); c++)
                 {
                     glBindVertexArray(tileVAO);
@@ -288,8 +301,9 @@ int main()
                         targetX = x;
                         targetY = y + 1.0f;
 
-                        if (tmap->getWalkable(c, r) == 2) {
-                            playing = false;
+                        if (tmap->getCoins(c, r) == 1) {
+                            tmap->setCoins(c, r, 2);
+                            coinsCollected += 1;
                         }
                     }
                     else if (character.getCharacterX() == c && character.getCharacterY() == r && !animating)
@@ -315,16 +329,22 @@ int main()
                     glUniform1i(glGetUniformLocation(shaderProgram, "sprite"), 0);
                     glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 
+                   
+
                     if (tmap->getCoins(c, r) != 0)
                     {
+                        
                         coin.setOffsetX(coin.getCoinXFrames() * (float)coinFrame);
+
+                        float coinTx = tmap->getCoins(c, r) == 1 ? (x + th - th2 / 2.0f) : (x) ;
+                        float coinTy = tmap->getCoins(c, r) == 1 ? (y + 1.0) : (tmap->getYf() - 1.0f);
 
                         glBindVertexArray(coinVAO);
                         glUniform1f(glGetUniformLocation(shaderProgram, "offsetx"), coin.getOffsetX());
                         glUniform1f(glGetUniformLocation(shaderProgram, "offsety"), coin.getOffsetY());
                         glUniform1f(glGetUniformLocation(shaderProgram, "layer_z"), 0.51f);
-                        glUniform1f(glGetUniformLocation(shaderProgram, "tx"), x + th - th2 / 2); // Genialidade ou preguiça ? (0_0) preguiça
-                        glUniform1f(glGetUniformLocation(shaderProgram, "ty"), y + 1.0);
+                        glUniform1f(glGetUniformLocation(shaderProgram, "tx"), coinTx); // Genialidade ou preguiça ? (0_0) preguiça
+                        glUniform1f(glGetUniformLocation(shaderProgram, "ty"), coinTy);
 
                         glActiveTexture(GL_TEXTURE0);
                         glBindTexture(GL_TEXTURE_2D, coin.getTexture());
@@ -422,9 +442,6 @@ int main()
                 glfwSetWindowShouldClose(g_window, 1);
             }
 
-            cout << "X: " << character.getX() << ", Y: " << character.getY() << endl;
-            cout << "CX: " << character.getCharacterX() << ", CY: " << character.getCharacterY() << endl;
-
             // E NE
             if (e == GLFW_PRESS && character.getCharacterX() < tmap->getWidth() - 1 && characterElapsed > (0.16) && !animating)
             {
@@ -435,7 +452,12 @@ int main()
                     character.setCharacterPreviousTimeAnimation(current_seconds);
                     character.setCharacterX(newX);
                     action = 1;
+                } else if (tmap->getWalkable(newX, character.getCharacterY()) == 2) {
+                    playing = false;
+                    character.setCharacterPreviousTimeAnimation(current_seconds);
                 }
+
+                
                 // cout << "E" << endl;
             }
 
@@ -443,12 +465,15 @@ int main()
             if (q == GLFW_PRESS && character.getCharacterY() > 0 && characterElapsed > (0.16) && !animating)
             {
                 int newY = character.getCharacterY() - 1;
-                if (tmap->getWalkable(character.getCharacterX(), newY) != 1)
+                if (tmap->getWalkable(character.getCharacterX(), newY) == 0)
                 {
                     animating = true;
                     character.setCharacterPreviousTimeAnimation(current_seconds);
                     character.setCharacterY(newY);
                     action = 0;
+                } else if (tmap->getWalkable(character.getCharacterX(), newY) == 2) {
+                    playing = false;
+                    character.setCharacterPreviousTimeAnimation(current_seconds);
                 }
                 // cout << "Q" << endl;
             }
@@ -456,13 +481,22 @@ int main()
             // C SE
             if (c == GLFW_PRESS && character.getCharacterY() < tmap->getHeight() - 1 && characterElapsed > (0.16) && !animating)
             {
+                cout << "C" << endl;
+            
                 int newY = character.getCharacterY() + 1;
-                if (tmap->getWalkable(character.getCharacterX(), newY) != 1)
+
+                    cout << "C -> " << tmap->getWalkable(character.getCharacterX(), newY) << endl;
+                if (tmap->getWalkable(character.getCharacterX(), newY) == 0)
                 {
+                    cout << "C1" << endl;
                     animating = true;
                     character.setCharacterPreviousTimeAnimation(current_seconds);
                     character.setCharacterY(newY);
                     action = 1;
+                } else if (tmap->getWalkable(character.getCharacterX(), newY) == 2) {
+                    cout << "C2" << endl;
+                    playing = false;
+                    character.setCharacterPreviousTimeAnimation(current_seconds);
                 }
                 // cout << "C" << endl;
             }
@@ -471,12 +505,15 @@ int main()
             if (z == GLFW_PRESS && character.getCharacterX() > 0 && characterElapsed > (0.16) && !animating)
             {
                 int newX = character.getCharacterX() - 1;
-                if (tmap->getWalkable(newX, character.getCharacterY()) != 1)
+                if (tmap->getWalkable(newX, character.getCharacterY()) == 0)
                 {
                     animating = true;
                     character.setCharacterPreviousTimeAnimation(current_seconds);
                     character.setCharacterX(newX);
                     action = 0;
+                } else if (tmap->getWalkable(newX, character.getCharacterY()) == 2) {
+                    playing = false;
+                    character.setCharacterPreviousTimeAnimation(current_seconds);
                 }
                 // cout << "Z" << endl;
             }
@@ -487,7 +524,7 @@ int main()
 
                 int newX = character.getCharacterX() - 1;
                 int newY = character.getCharacterY() + 1;
-                if (tmap->getWalkable(newX, newY) != 1)
+                if (tmap->getWalkable(newX, newY) == 0)
                 {
 
                     animating = true;
@@ -495,6 +532,9 @@ int main()
                     character.setCharacterY(newY);
                     character.setCharacterX(newX);
                     action = 3;
+                } else if (tmap->getWalkable(newX, newY) == 2) {
+                    playing = false;
+                    character.setCharacterPreviousTimeAnimation(current_seconds);
                 }
                 // cout << "S" << endl;
             }
@@ -505,13 +545,16 @@ int main()
 
                 int newX = character.getCharacterX() + 1;
                 int newY = character.getCharacterY() - 1;
-                if (tmap->getWalkable(newX, newY) != 1)
+                if (tmap->getWalkable(newX, newY) == 0)
                 {
                     animating = true;
                     character.setCharacterPreviousTimeAnimation(current_seconds);
                     character.setCharacterY(newY);
                     character.setCharacterX(newX);
                     action = 2;
+                } else if (tmap->getWalkable(newX, newY) == 2) {
+                    playing = false;
+                    character.setCharacterPreviousTimeAnimation(current_seconds);
                 }
                 // cout << "W" << endl;
             }
@@ -521,13 +564,16 @@ int main()
             {
                 int newX = character.getCharacterX() - 1;
                 int newY = character.getCharacterY() - 1;
-                if (tmap->getWalkable(newX, newY) != 1)
+                if (tmap->getWalkable(newX, newY) == 0)
                 {
                     animating = true;
                     character.setCharacterPreviousTimeAnimation(current_seconds);
                     character.setCharacterX(newX);
                     character.setCharacterY(newY);
                     action = 0;
+                } else if (tmap->getWalkable(newX, newY) == 2) {
+                    playing = false;
+                    character.setCharacterPreviousTimeAnimation(current_seconds);
                 }
                 // cout << "A" << endl;
             }
@@ -537,15 +583,27 @@ int main()
             {
                 int newX = character.getCharacterX() + 1;
                 int newY = character.getCharacterY() + 1;
-                if (tmap->getWalkable(newX, newY) != 1)
+                if (tmap->getWalkable(newX, newY) == 0)
                 {
                     animating = true;
                     character.setCharacterPreviousTimeAnimation(current_seconds);
                     character.setCharacterX(newX);
                     character.setCharacterY(newY);
                     action = 1;
+                } else if (tmap->getWalkable(newX, newY) == 2) {
+                    playing = false;
+                    character.setCharacterPreviousTimeAnimation(current_seconds);
                 }
                 // cout << "D" << endl;
+            }
+           // cout << "Moedas coletadas: " << coinsCollected << endl;
+            //cout << "Total: " << tmap->getTotalCoins() << endl;
+            if (playing == false) {
+                cout << "Morreu 0_0" << endl;
+            }
+
+            if (coinsCollected == tmap->getTotalCoins()) {
+                playing = false;
             }
         }
     }
