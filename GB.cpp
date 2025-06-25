@@ -17,6 +17,7 @@
 #include <glm/gtc/type_ptr.hpp>
 #include "TileMap.h"
 #include "Character.h"
+#include "Coin.h"
 #include <fstream>
 
 using namespace std;
@@ -33,9 +34,6 @@ float yf = 1.0f;
 float w = xf - xi;
 float h = yf - yi;
 int tileSetCols = 7, tileSetRows = 1;
-
-float ds = 1.0 / 8.0;
-float dt = 1.0 / 4.0;
 
 int userX = 0;
 int userY = 7;
@@ -130,61 +128,6 @@ GLuint generateTileVAO(float th, float tw, float th2, float tileH2, float tileH,
     return VAO;
 }
 
-GLuint generateCharacterVAO(float th, float tw)
-{
-    float vertices[] = {
-        xi + tw,
-        yi + th + th / 4.0f,
-        0.0f,
-        ds,
-        dt,
-
-        xi,
-        yi + th / 4.0f,
-        0.0f,
-        0.0f,
-        0.0f,
-
-        xi + tw,
-        yi + th / 4.0f,
-        0.0f,
-        ds,
-        0.0f,
-
-        xi,
-        yi + th + th / 4.0f,
-        0.0f,
-        0.0f,
-        dt,
-    
-    };
-
-    unsigned int indices[] = {
-        2, 1, 0,
-        0, 3, 1};
-
-    GLuint VAO, VBO, EBO;
-    glGenVertexArrays(1, &VAO);
-    glGenBuffers(1, &VBO);
-    glGenBuffers(1, &EBO);
-
-    glBindVertexArray(VAO);
-
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
-
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void *)0);
-    glEnableVertexAttribArray(0);
-
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void *)(3 * sizeof(float)));
-    glEnableVertexAttribArray(1);
-
-    return VAO;
-}
-
 TileMap *readMap(char *filename)
 {
     ifstream arq(filename);
@@ -231,9 +174,15 @@ int main()
 
     Character character = Character::generateModel();
     GLuint tex;
-    loadTexture(tex, "sprite.png");
+    loadTexture(tex, character.getFileName());
     character.setTexture(tex);
-    GLuint characterVAO = generateCharacterVAO(tw, tw);
+    GLuint characterVAO = character.generateCharacterVAO(xi, yi, tw, tw);
+
+    Coin coin = Coin::generateModel();
+    GLuint coinTex;
+    loadTexture(coinTex, coin.getFileName());
+    coin.setTexture(coinTex);
+    GLuint coinVAO = coin.generateCoinVAO(xi, yi, tw, tw);
 
     char vertex_shader[1024 * 256];
     char fragment_shader[1024 * 256];
@@ -285,7 +234,8 @@ int main()
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-    int actualFrame = 7;
+    
+    int coinFrame = 0;
     int action = 3;
     float previous = glfwGetTime();
     bool animating = false;
@@ -295,9 +245,6 @@ int main()
 
     float previousX = 0.0f;
     float previousY = 0.0f;
-
-    float characterTx = 0.0f;
-    float characterTy = 0.0f;
 
     while (!glfwWindowShouldClose(g_window))
     {
@@ -326,20 +273,21 @@ int main()
                 tmap->computeDrawPosition(c, r, tw, th, x, y);
 
                 float offsetx = u * tileW;
-                if (userX == c && userY == r && animating && characterTx == previousX && characterTy == previousY)
+                if (userX == c && userY == r && animating && character.getX() == previousX && character.getY() == previousY)
                 {
-                    previousX = characterTx;
-                    previousY = characterTy;
+                    previousX = character.getX();
+                    previousY = character.getY();
                     targetX = x;
                     targetY = y + 1.0f;
                 } else if(userX == c && userY == r && !animating) {
-                    characterTx = x;
-                    characterTy = y + 1.0f;
-                    targetX = characterTx;
-                    targetY = characterTy;
-                    previousX = characterTx;
-                    previousY = characterTy;
+                    character.setX(x);
+                    character.setY(y + 1.0f);
+                    targetX = character.getX();
+                    targetY = character.getY();
+                    previousX = character.getX();
+                    previousY = character.getY();
                 }
+
                 
                 glUniform1f(glGetUniformLocation(shaderProgram, "offsetx"), offsetx);
                 glUniform1f(glGetUniformLocation(shaderProgram, "offsety"), v * tileH);
@@ -354,66 +302,91 @@ int main()
             }
         }
 
-        character.setOffsetX(ds * (float)actualFrame);
-        character.setOffsetY(dt * (float)action);
-
         double elapsed = current_seconds - previous;
+        double characterElapsed = current_seconds - character.getCharacterPreviousTimeAnimation();
 
-        character.setOffsetX(ds * (float)actualFrame);
-        character.setOffsetY(dt * (float)action);
+        if (characterElapsed > (0.08) && animating) {
+            if (character.getX() < targetX || character.getX() > targetX) {
+                character.setX(character.getX() + (targetX - previousX) / 8.0f);
+            }
 
-        if (elapsed > (0.08) && animating) {
-            if (characterTx < targetX || characterTx > targetX) {
-                characterTx += (targetX - previousX) / 8.0f;
-            } 
+            if (character.getY() < targetY || character.getY() > targetY) {
+                character.setY(character.getY() + (targetY - previousY) / 8.0f);
+            }
 
-            if (characterTy < targetY || characterTy > targetY) {
-                characterTy += (targetY - previousY) / 8.0f;
-            } 
-
-            cout << "Character position: (" << characterTx << ", " << characterTy << ")" << endl;
-            cout << "Target position: (" << targetX << ", " << targetY << ")" << endl;
             const float EPSILON = 0.0001f;
-            if (fabs(characterTx - targetX) < EPSILON && fabs(characterTy - targetY) < EPSILON) {
+            if (fabs(character.getX() - targetX) < EPSILON && fabs(character.getY() - targetY) < EPSILON) {
                 action = 3; // Reset action to idle; // Reset elapsed time
                 animating = false;
                 previousX = targetX;
                 previousY = targetY;
-                actualFrame = 7;
-                cout << "Animation finished!" << endl;
+                character.setCharacterFrame(7); // Reset character frame to idle
             }
         }
 
-        if (elapsed > (0.08) && animating)
-        {
-            previous = current_seconds;
+        if (characterElapsed > (0.08) && animating) {
+            character.setCharacterPreviousTimeAnimation(current_seconds);
 
-            if (actualFrame == 8)
+            if (character.getCharacterFrame() == 8)
             {
                 action = (4 + (action - 1)) % 4;
-                actualFrame = 0;
+                character.setCharacterFrame(0);
             }
             else
             {
-                actualFrame = (actualFrame + 1) % 8;
+                character.setCharacterFrame((character.getCharacterFrame() + 1) % 8);
             }
-        }
+        }  
+
+        character.setOffsetX((float)character.getCharacterXFrames() * (float)character.getCharacterFrame());
+        character.setOffsetY((float)character.getCharacterYFrames() * (float)action);
 
         glBindVertexArray(characterVAO);
         glUniform1f(glGetUniformLocation(shaderProgram, "offsetx"), character.getOffsetX());
         glUniform1f(glGetUniformLocation(shaderProgram, "offsety"), character.getOffsetY());
         glUniform1f(glGetUniformLocation(shaderProgram, "layer_z"), 0.50f);
-        glUniform1f(glGetUniformLocation(shaderProgram, "tx"), characterTx);
-        glUniform1f(glGetUniformLocation(shaderProgram, "ty"), characterTy);
+        glUniform1f(glGetUniformLocation(shaderProgram, "tx"), character.getX());
+        glUniform1f(glGetUniformLocation(shaderProgram, "ty"), character.getY());
 
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, character.getTexture());
         glUniform1i(glGetUniformLocation(shaderProgram, "sprite"), 0);
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 
+
+        if (elapsed > (0.2)) {
+            previous = current_seconds;
+
+            if (coinFrame == 9)
+            {
+                coinFrame = 0;
+            }
+            else
+            {
+                coinFrame = (coinFrame + 1) % 9;
+            }
+        }
+
+        coin.setOffsetX(coin.getCoinXFrames() * (float)coinFrame);
+
+        glBindVertexArray(coinVAO);
+        glUniform1f(glGetUniformLocation(shaderProgram, "offsetx"), coin.getOffsetX());
+        glUniform1f(glGetUniformLocation(shaderProgram, "offsety"), coin.getOffsetY());
+        glUniform1f(glGetUniformLocation(shaderProgram, "layer_z"), 0.51f);
+        glUniform1f(glGetUniformLocation(shaderProgram, "tx"), coin.getX());
+        glUniform1f(glGetUniformLocation(shaderProgram, "ty"), coin.getY());
+
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, coin.getTexture());
+        glUniform1i(glGetUniformLocation(shaderProgram, "sprite"), 0);
+        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+
+
+
         glfwPollEvents();
 
         glfwSwapBuffers(g_window);
+
 
         int w = glfwGetKey(g_window, GLFW_KEY_W);
         int a = glfwGetKey(g_window, GLFW_KEY_A);
@@ -430,50 +403,50 @@ int main()
         }
 
         // E NE
-        if (e == GLFW_PRESS && userX < tmap->getWidth() - 1 && (current_seconds - previous) > (0.16) && !animating)
+        if (e == GLFW_PRESS && userX < tmap->getWidth() - 1 && characterElapsed > (0.16) && !animating)
         {
             animating = true;
-            previous = current_seconds;
+            character.setCharacterPreviousTimeAnimation(current_seconds);
             userX += 1;
-                     action = 2;
+            action = 1;
             // cout << "E" << endl;
         }
 
         // Q NO
-        if (q == GLFW_PRESS && userY > 0 && (current_seconds - previous) > (0.16) && !animating)
+        if (q == GLFW_PRESS && userY > 0 && characterElapsed > (0.16) && !animating)
         {
             animating = true;
-            previous = current_seconds;
+            character.setCharacterPreviousTimeAnimation(current_seconds);
             userY -= 1;
-                     action = 2;
+            action = 0;
             // cout << "Q" << endl;
         }
 
         // C SE
-        if (c == GLFW_PRESS && userY < tmap->getHeight() - 1 && (current_seconds - previous) > (0.16) && !animating)
+        if (c == GLFW_PRESS && userY < tmap->getHeight() - 1 && characterElapsed > (0.16) && !animating)
         {
             animating = true;
-            previous = current_seconds;
+            character.setCharacterPreviousTimeAnimation(current_seconds);
             userY += 1;
             action = 1;
             // cout << "C" << endl;
         }
 
         // Z SO
-        if (z == GLFW_PRESS && userX > 0 && (current_seconds - previous) > (0.16) && !animating)
+        if (z == GLFW_PRESS && userX > 0 && characterElapsed > (0.16) && !animating)
         {
             animating = true;
-            previous = current_seconds;
+            character.setCharacterPreviousTimeAnimation(current_seconds);
             userX -= 1;
-             action = 0;
+            action = 0;
             // cout << "Z" << endl;
         }
 
         // S
-        if (s == GLFW_PRESS && d != GLFW_PRESS && a != GLFW_PRESS && userY < tmap->getHeight() - 1 && userX > 0 && (current_seconds - previous) > (0.16) && !animating)
+        if (s == GLFW_PRESS && d != GLFW_PRESS && a != GLFW_PRESS && userY < tmap->getHeight() - 1 && userX > 0 && characterElapsed > (0.16) && !animating)
         {
             animating = true;
-            previous = current_seconds;
+            character.setCharacterPreviousTimeAnimation(current_seconds);
             userY += 1;
             userX -= 1;
             action = 3;
@@ -481,10 +454,10 @@ int main()
         }
 
         // W
-        if (w == GLFW_PRESS && d != GLFW_PRESS && a != GLFW_PRESS && userY > 0 && userX < tmap->getWidth() - 1 && (current_seconds - previous) > (0.16) && !animating)
+        if (w == GLFW_PRESS && d != GLFW_PRESS && a != GLFW_PRESS && userY > 0 && userX < tmap->getWidth() - 1 && characterElapsed > (0.16) && !animating)
         {
             animating = true;
-            previous = current_seconds;
+            character.setCharacterPreviousTimeAnimation(current_seconds);
             userY -= 1;
             userX += 1;
             action = 2;
@@ -492,10 +465,10 @@ int main()
         }
 
         // A
-        if (a == GLFW_PRESS && userX > 0 && userY > 0 && (current_seconds - previous) > (0.16) && !animating)
+        if (a == GLFW_PRESS && userX > 0 && userY > 0 && characterElapsed > (0.16) && !animating)
         {
             animating = true;
-            previous = current_seconds;
+            character.setCharacterPreviousTimeAnimation(current_seconds);
             userX -= 1;
             userY -= 1;
             action = 0;
@@ -503,10 +476,10 @@ int main()
         }
 
         // D
-        if (d == GLFW_PRESS && userX < tmap->getWidth() - 1 && userY < tmap->getHeight() - 1 && (current_seconds - previous) > (0.16) && !animating)
+        if (d == GLFW_PRESS && userX < tmap->getWidth() - 1 && userY < tmap->getHeight() - 1 && characterElapsed > (0.16) && !animating)
         {
             animating = true;
-            previous = current_seconds;
+            character.setCharacterPreviousTimeAnimation(current_seconds);
             userX += 1;
             userY += 1;
             action = 1;

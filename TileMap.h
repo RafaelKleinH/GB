@@ -3,15 +3,17 @@ class TileMap {
     unsigned int tid;      // indicação do tileset utilizado
     int width, height;     // dimensões da matriz
     unsigned char *map; // mapa com ids dos tiles que formam o cenário
+    char *fileName; // nome do arquivo de mapa
 
     
 public:
-    TileMap(int w, int h, unsigned char initWith) {
+    TileMap(int w, int h, unsigned char initWith, char *fileName) {
         this->map = new unsigned char [w*h];
         this->width = w;
         this->height = h;
         this->z = 0.0f;
         this->tid = 0;
+        this->fileName = fileName;
     }
     
     unsigned char* getMap() {
