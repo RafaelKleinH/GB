@@ -27,17 +27,6 @@ GLFWwindow *g_window = NULL;
 int g_gl_height = 1080;
 int g_gl_width = 1920;
 
-float xi = -1.0f;
-float xf = 1.0f;
-float yi = -1.0f;
-float yf = 1.0f;
-float w = xf - xi;
-float h = yf - yi;
-int tileSetCols = 7, tileSetRows = 1;
-
-int userX = 0;
-int userY = 7;
-
 TileMap *tmap = NULL;
 
 int loadTexture(unsigned int &texture, char *filename)
@@ -73,30 +62,30 @@ int loadTexture(unsigned int &texture, char *filename)
     stbi_image_free(data);
 }
 
-GLuint generateTileVAO(float th, float tw, float th2, float tileH2, float tileH, float tw2, float tileW2, float tileW)
+GLuint generateTileVAO(float th, float tw, float th2, float tileH2, float tileH, float tw2, float tileW2, float tileW, TileMap tmap)
 {
 
     float vertices[] = {
-        xi,
-        yi + th2,
+        tmap.getXi(),
+        tmap.getYi() + th2,
         0.0f,
         0.0f,
         tileH2,
 
-        xi + tw2,
-        yi,
+        tmap.getXi() + tw2,
+        tmap.getYi(),
         0.0f,
         tileW2,
         0.0f,
 
-        xi + tw,
-        yi + th2,
+        tmap.getXi() + tw,
+        tmap.getYi() + th2,
         0.0f,
         tileW,
         tileH2,
 
-        xi + tw2,
-        yi + th,
+        tmap.getXi() + tw2,
+        tmap.getYi() + th,
         0.0f,
         tileW2,
         tileH
@@ -132,8 +121,16 @@ TileMap *readMap(char *filename)
 {
     ifstream arq(filename);
     int w, h;
-    arq >> w >> h;
-    TileMap *tmap = new TileMap(w, h, 0);
+    char* tileName = new char[256];
+    float tilesetXFrames;
+    int totalW, totalH;
+    arq >> tileName >> tilesetXFrames >> totalH >> totalW >> w >> h;
+
+    cout << "Map dimensions: " << w << "x" << h << endl;
+    cout << "Tile name: " << tileName << endl;
+    cout << "Tileset X Frames: " << tilesetXFrames << endl;
+    cout << "Total Width: " << totalW << ", Total Height: " << totalH << endl;
+    TileMap *tmap = new TileMap(w, h, tileName, tilesetXFrames, 1, (float)g_gl_width, (float)totalW, (float)g_gl_height, (float)totalH);
     for (int r = 0; r < h; r++)
     {
         for (int c = 0; c < w; c++)
@@ -156,33 +153,37 @@ int main()
     glEnable(GL_DEPTH_TEST); // enable depth-testing
     glDepthFunc(GL_LESS);
 
+
     tmap = readMap("terreno.tmap");
     GLuint tid;
-    loadTexture(tid, "tilesetIso.png");
+    cout << "Tile name: " << tmap->getFileName() << endl;
+    loadTexture(tid, tmap->getFileName());
     tmap->setTid(tid);
 
+    float w = tmap->getXf() - tmap->getXi();
+    float h = tmap->getYf() - tmap->getYi();
     float tw = w / tmap->getWidth();
     float th = tw / 2.0f;
     float tw2 = th;
     float th2 = th / 2.0f;
-    float tileW = 1.0f / (float)tileSetCols;
+    float tileW = 1.0f / (float)tmap->getTileSetCols();
     float tileW2 = tileW / 2.0f;
-    float tileH = 1.0f / (float)tileSetRows;
+    float tileH = 1.0f / (float)tmap->getTileSetRows();
     float tileH2 = tileH / 2.0f;
 
-    GLuint tileVAO = generateTileVAO(th, tw, th2, tileH2, tileH, tw2, tileW2, tileW);
+    GLuint tileVAO = generateTileVAO(th, tw, th2, tileH2, tileH, tw2, tileW2, tileW, *tmap);
 
     Character character = Character::generateModel();
     GLuint tex;
     loadTexture(tex, character.getFileName());
     character.setTexture(tex);
-    GLuint characterVAO = character.generateCharacterVAO(xi, yi, tw, tw);
+    GLuint characterVAO = character.generateCharacterVAO(tmap->getXi(), tmap->getYi(), tw, tw);
 
     Coin coin = Coin::generateModel();
     GLuint coinTex;
     loadTexture(coinTex, coin.getFileName());
     coin.setTexture(coinTex);
-    GLuint coinVAO = coin.generateCoinVAO(xi, yi, tw, tw);
+    GLuint coinVAO = coin.generateCoinVAO(tmap->getXi(), tmap->getYi(), tw, tw);
 
     char vertex_shader[1024 * 256];
     char fragment_shader[1024 * 256];
@@ -267,19 +268,19 @@ int main()
             for (int c = 0; c < tmap->getWidth(); c++)
             {
                 int t_id = (int)tmap->getTile(c, r);
-                int u = t_id % tileSetCols;
-                int v = t_id / tileSetCols;
+                int u = t_id % tmap->getTileSetCols();
+                int v = t_id / tmap->getTileSetCols();
 
                 tmap->computeDrawPosition(c, r, tw, th, x, y);
 
                 float offsetx = u * tileW;
-                if (userX == c && userY == r && animating && character.getX() == previousX && character.getY() == previousY)
+                if (character.getCharacterX() == c && character.getCharacterY() == r && animating && character.getX() == previousX && character.getY() == previousY)
                 {
                     previousX = character.getX();
                     previousY = character.getY();
                     targetX = x;
                     targetY = y + 1.0f;
-                } else if(userX == c && userY == r && !animating) {
+                } else if(character.getCharacterX() == c && character.getCharacterY() == r && !animating) {
                     character.setX(x);
                     character.setY(y + 1.0f);
                     targetX = character.getX();
@@ -403,85 +404,85 @@ int main()
         }
 
         // E NE
-        if (e == GLFW_PRESS && userX < tmap->getWidth() - 1 && characterElapsed > (0.16) && !animating)
+        if (e == GLFW_PRESS && character.getCharacterX() < tmap->getWidth() - 1 && characterElapsed > (0.16) && !animating)
         {
             animating = true;
             character.setCharacterPreviousTimeAnimation(current_seconds);
-            userX += 1;
+            character.setCharacterX(character.getCharacterX() + 1);
             action = 1;
             // cout << "E" << endl;
         }
 
         // Q NO
-        if (q == GLFW_PRESS && userY > 0 && characterElapsed > (0.16) && !animating)
+        if (q == GLFW_PRESS && character.getCharacterY() > 0 && characterElapsed > (0.16) && !animating)
         {
             animating = true;
             character.setCharacterPreviousTimeAnimation(current_seconds);
-            userY -= 1;
+            character.setCharacterY(character.getCharacterY() - 1);
             action = 0;
             // cout << "Q" << endl;
         }
 
         // C SE
-        if (c == GLFW_PRESS && userY < tmap->getHeight() - 1 && characterElapsed > (0.16) && !animating)
+        if (c == GLFW_PRESS && character.getCharacterY() < tmap->getHeight() - 1 && characterElapsed > (0.16) && !animating)
         {
             animating = true;
             character.setCharacterPreviousTimeAnimation(current_seconds);
-            userY += 1;
+            character.setCharacterY(character.getCharacterY() + 1);
             action = 1;
             // cout << "C" << endl;
         }
 
         // Z SO
-        if (z == GLFW_PRESS && userX > 0 && characterElapsed > (0.16) && !animating)
+        if (z == GLFW_PRESS && character.getCharacterX() > 0 && characterElapsed > (0.16) && !animating)
         {
             animating = true;
             character.setCharacterPreviousTimeAnimation(current_seconds);
-            userX -= 1;
+            character.setCharacterX(character.getCharacterX() - 1);
             action = 0;
             // cout << "Z" << endl;
         }
 
         // S
-        if (s == GLFW_PRESS && d != GLFW_PRESS && a != GLFW_PRESS && userY < tmap->getHeight() - 1 && userX > 0 && characterElapsed > (0.16) && !animating)
+        if (s == GLFW_PRESS && d != GLFW_PRESS && a != GLFW_PRESS && character.getCharacterY() < tmap->getHeight() - 1 && character.getCharacterX() > 0 && characterElapsed > (0.16) && !animating)
         {
             animating = true;
             character.setCharacterPreviousTimeAnimation(current_seconds);
-            userY += 1;
-            userX -= 1;
+            character.setCharacterY(character.getCharacterY() + 1);
+            character.setCharacterX(character.getCharacterX() - 1);
             action = 3;
             // cout << "S" << endl;
         }
 
         // W
-        if (w == GLFW_PRESS && d != GLFW_PRESS && a != GLFW_PRESS && userY > 0 && userX < tmap->getWidth() - 1 && characterElapsed > (0.16) && !animating)
+        if (w == GLFW_PRESS && d != GLFW_PRESS && a != GLFW_PRESS && character.getCharacterY() > 0 && character.getCharacterX() < tmap->getWidth() - 1 && characterElapsed > (0.16) && !animating)
         {
             animating = true;
             character.setCharacterPreviousTimeAnimation(current_seconds);
-            userY -= 1;
-            userX += 1;
+            character.setCharacterY(character.getCharacterY() - 1);
+            character.setCharacterX(character.getCharacterX() + 1);
             action = 2;
             // cout << "W" << endl;
         }
 
         // A
-        if (a == GLFW_PRESS && userX > 0 && userY > 0 && characterElapsed > (0.16) && !animating)
+        if (a == GLFW_PRESS && character.getCharacterX() > 0 && character.getCharacterY() > 0 && characterElapsed > (0.16) && !animating)
         {
             animating = true;
             character.setCharacterPreviousTimeAnimation(current_seconds);
-            userX -= 1;
-            userY -= 1;
+            character.setCharacterX(character.getCharacterX() - 1);
+            character.setCharacterY(character.getCharacterY() - 1);
             action = 0;
             // cout << "A" << endl;
         }
 
         // D
-        if (d == GLFW_PRESS && userX < tmap->getWidth() - 1 && userY < tmap->getHeight() - 1 && characterElapsed > (0.16) && !animating)
+        if (d == GLFW_PRESS && character.getCharacterX() < tmap->getWidth() - 1 && character.getCharacterY() < tmap->getHeight() - 1 && characterElapsed > (0.16) && !animating)
         {
             animating = true;
             character.setCharacterPreviousTimeAnimation(current_seconds);
-            userX += 1;
-            userY += 1;
+            character.setCharacterX(character.getCharacterX() + 1);
+            character.setCharacterY(character.getCharacterY() + 1);
             action = 1;
             // cout << "D" << endl;
         }
