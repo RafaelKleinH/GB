@@ -305,6 +305,11 @@ int main()
                             tmap->setCoins(c, r, 2);
                             coinsCollected += 1;
                         }
+
+                        if (t_id == 3) {
+                            offsetx = 6 * tileW;
+                            tmap->setTile(c, r, 6);
+                        }
                     }
                     else if (character.getCharacterX() == c && character.getCharacterY() == r && !animating)
                     {
