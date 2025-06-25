@@ -8,7 +8,8 @@ class Character : public Sprite
     float characterYFrames;
     float characterPreviousTimeAnimation = 0.0f;
 
-    int characterX, characterY;
+    int characterX, characterY; // Tile que ele tá
+    // X e Y que ele herda vai ser o lugar no plano
 
 public:
 
@@ -34,10 +35,10 @@ public:
         character.setOffsetY(3.0);
         character.setX(0.0);
         character.setY(0.0);
+        character.setCharacterX(0.0);
+        character.setCharacterY(0.0);
         character.characterXFrames = 1.0f / 8.0f; // 8 frames in the X direction
         character.characterYFrames = 1.0f / 4.0f; //
-        character.characterX = 0;
-        character.characterY = 0;
         character.setCharacterFrame(7); // Default frame
         return character;
     }

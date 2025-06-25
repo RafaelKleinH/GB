@@ -3,15 +3,22 @@ class TileMap {
     unsigned int tid;      // indicação do tileset utilizado
     int width, height;     // dimensões da matriz
     unsigned char *map; // mapa com ids dos tiles que formam o cenário
+    unsigned int *walkable;
     char *fileName; // nome do arquivo de mapa
     int tileSetCols, tileSetRows;
 
     float xi, yi; // posição inicial do tile no mapa
     float xf, yf; // posição final do tile no mapa
+
+    // Coin
+    unsigned int * coins;
+    bool collected = false;
     
 public:
     TileMap(int w, int h, char *fileName, float tileSetCols, float tileSetRows, float windowsXMax, float tileXMax, float windowsYMax, float tileYMax) {
         this->map = new unsigned char [w*h];
+        this->walkable = new unsigned int [w*h];
+        this->coins = new unsigned int [w*h];
         this->width = w;
         this->height = h;
         this->z = 0.0f;
@@ -39,7 +46,19 @@ public:
         return this->map[col + row * this->width];
     }
     
+    int getWalkable(int col, int row) {
+        return this->walkable[col + row * this->width];
+    }
+
+    int getCoins(int col, int row) {
+        return this->coins[col + row * this->width];
+    }
+
     void setTile(int col, int row, unsigned char tile) { this->map[col + row * this->width] = tile; }
+
+    void setWalkable(int col, int row, unsigned int walkable) { this->walkable[col + row * this->width] = walkable; }
+
+    void setCoins(int col, int row, unsigned int coin) { this->coins[col + row * this->width] = coin; }
 
     int getTileSet() { return this->tid; }
     float getZ() { return this->z; }
