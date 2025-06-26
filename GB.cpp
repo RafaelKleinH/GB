@@ -124,11 +124,6 @@ TileMap *readMap(char *filename)
     float tilesetXFrames;
     int totalW, totalH;
     arq >> tileName >> tilesetXFrames >> totalH >> totalW >> w >> h;
-
-    cout << "Map dimensions: " << w << "x" << h << endl;
-    cout << "Tile name: " << tileName << endl;
-    cout << "Tileset X Frames: " << tilesetXFrames << endl;
-    cout << "Total Width: " << totalW << ", Total Height: " << totalH << endl;
     TileMap *tmap = new TileMap(w, h, tileName, tilesetXFrames, 1, (float)g_gl_width, (float)totalW, (float)g_gl_height, (float)totalH);
 
     int totalCoins = 0;
@@ -140,21 +135,34 @@ TileMap *readMap(char *filename)
             arq >> tid;
             arq >> walkable;
             arq >> coin;
-            cout << tid << " ";
             tmap->setTile(c, h - r - 1, tid);
             tmap->setWalkable(c, h - r - 1, walkable);
             tmap->setCoins(c, h - r - 1, coin);
 
-            if (coin == 1) {
+            if (coin == 1)
+            {
                 totalCoins += 1;
             }
-           
         }
         cout << endl;
     }
     tmap->setTotalCoins(totalCoins);
     arq.close();
     return tmap;
+}
+
+void bindTexture(GLuint shaderProgram, float offsetx, float offsety, float layer_z, float tx, float ty, int texture)
+{
+    glUniform1f(glGetUniformLocation(shaderProgram, "offsetx"), offsetx);
+    glUniform1f(glGetUniformLocation(shaderProgram, "offsety"), offsety);
+    glUniform1f(glGetUniformLocation(shaderProgram, "layer_z"), layer_z);
+    glUniform1f(glGetUniformLocation(shaderProgram, "tx"), tx);
+    glUniform1f(glGetUniformLocation(shaderProgram, "ty"), ty);
+
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, texture);
+    glUniform1i(glGetUniformLocation(shaderProgram, "sprite"), 0);
+    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 }
 
 int main()
@@ -214,15 +222,13 @@ int main()
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-
-
     while (!glfwWindowShouldClose(g_window))
     {
-        bool firstCycle = false;
         bool playing = true;
 
         int coinFrame = 0;
         int action = 3;
+        
         float previous = glfwGetTime();
         bool animating = false;
 
@@ -264,7 +270,6 @@ int main()
         GLuint coinVAO = coin.generateCoinVAO(tmap->getXi(), tmap->getYi(), tw, tw);
 
         float coinsCollected = 0;
-        
 
         while (!glfwWindowShouldClose(g_window) && playing)
         {
@@ -282,7 +287,6 @@ int main()
             for (int r = 0; r < tmap->getHeight(); r++)
             {
 
-                
                 for (int c = 0; c < tmap->getWidth(); c++)
                 {
                     glBindVertexArray(tileVAO);
@@ -301,18 +305,19 @@ int main()
                         targetX = x;
                         targetY = y + 1.0f;
 
-                        if (tmap->getCoins(c, r) == 1) {
+                        if (tmap->getCoins(c, r) == 1)
+                        {
                             tmap->setCoins(c, r, 2);
                             coinsCollected += 1;
                         }
 
-                        if (t_id == 3) {
+                        if (t_id == 3)
+                        {
                             offsetx = 6 * tileW;
                             tmap->setTile(c, r, 6);
                         }
                     }
-                    else if (character.getCharacterX() == c && character.getCharacterY() == r && !animating)
-                    {
+                    else if (character.getCharacterX() == c && character.getCharacterY() == r && !animating) {
                         character.setX(x);
                         character.setY(y + 1.0f);
                         targetX = character.getX();
@@ -321,40 +326,16 @@ int main()
                         previousY = character.getY();
                     }
 
+                    bindTexture(shaderProgram, offsetx, v * tileH, 0.55f, x, y + 1.0, tmap->getTileSet());
 
-
-                    glUniform1f(glGetUniformLocation(shaderProgram, "offsetx"), offsetx);
-                    glUniform1f(glGetUniformLocation(shaderProgram, "offsety"), v * tileH);
-                    glUniform1f(glGetUniformLocation(shaderProgram, "layer_z"), 0.55f);
-                    glUniform1f(glGetUniformLocation(shaderProgram, "tx"), x);
-                    glUniform1f(glGetUniformLocation(shaderProgram, "ty"), y + 1.0);
-
-                    glActiveTexture(GL_TEXTURE0);
-                    glBindTexture(GL_TEXTURE_2D, tmap->getTileSet());
-                    glUniform1i(glGetUniformLocation(shaderProgram, "sprite"), 0);
-                    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-
-                   
-
-                    if (tmap->getCoins(c, r) != 0)
-                    {
-                        
+                    if (tmap->getCoins(c, r) != 0) {
                         coin.setOffsetX(coin.getCoinXFrames() * (float)coinFrame);
 
-                        float coinTx = tmap->getCoins(c, r) == 1 ? (x + th - th2 / 2.0f) : (x) ;
+                        float coinTx = tmap->getCoins(c, r) == 1 ? (x + th - th2 / 2.0f) : (x);
                         float coinTy = tmap->getCoins(c, r) == 1 ? (y + 1.0) : (tmap->getYf() - 1.0f);
 
                         glBindVertexArray(coinVAO);
-                        glUniform1f(glGetUniformLocation(shaderProgram, "offsetx"), coin.getOffsetX());
-                        glUniform1f(glGetUniformLocation(shaderProgram, "offsety"), coin.getOffsetY());
-                        glUniform1f(glGetUniformLocation(shaderProgram, "layer_z"), 0.51f);
-                        glUniform1f(glGetUniformLocation(shaderProgram, "tx"), coinTx); // Genialidade ou preguiça ? (0_0) preguiça
-                        glUniform1f(glGetUniformLocation(shaderProgram, "ty"), coinTy);
-
-                        glActiveTexture(GL_TEXTURE0);
-                        glBindTexture(GL_TEXTURE_2D, coin.getTexture());
-                        glUniform1i(glGetUniformLocation(shaderProgram, "sprite"), 0);
-                        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+                        bindTexture(shaderProgram, coin.getOffsetX(), coin.getOffsetY(), 0.51f, coinTx, coinTy, coin.getTexture());
                     }
                 }
             }
@@ -404,16 +385,7 @@ int main()
             character.setOffsetY((float)character.getCharacterYFrames() * (float)action);
 
             glBindVertexArray(characterVAO);
-            glUniform1f(glGetUniformLocation(shaderProgram, "offsetx"), character.getOffsetX());
-            glUniform1f(glGetUniformLocation(shaderProgram, "offsety"), character.getOffsetY());
-            glUniform1f(glGetUniformLocation(shaderProgram, "layer_z"), 0.50f);
-            glUniform1f(glGetUniformLocation(shaderProgram, "tx"), character.getX());
-            glUniform1f(glGetUniformLocation(shaderProgram, "ty"), character.getY());
-
-            glActiveTexture(GL_TEXTURE0);
-            glBindTexture(GL_TEXTURE_2D, character.getTexture());
-            glUniform1i(glGetUniformLocation(shaderProgram, "sprite"), 0);
-            glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+            bindTexture(shaderProgram, character.getOffsetX(), character.getOffsetY(), 0.50f, character.getX(), character.getY(), character.getTexture());
 
             if (elapsed > (0.2))
             {
@@ -457,12 +429,13 @@ int main()
                     character.setCharacterPreviousTimeAnimation(current_seconds);
                     character.setCharacterX(newX);
                     action = 1;
-                } else if (tmap->getWalkable(newX, character.getCharacterY()) == 2) {
+                }
+                else if (tmap->getWalkable(newX, character.getCharacterY()) == 2)
+                {
                     playing = false;
                     character.setCharacterPreviousTimeAnimation(current_seconds);
                 }
 
-                
                 // cout << "E" << endl;
             }
 
@@ -476,7 +449,9 @@ int main()
                     character.setCharacterPreviousTimeAnimation(current_seconds);
                     character.setCharacterY(newY);
                     action = 0;
-                } else if (tmap->getWalkable(character.getCharacterX(), newY) == 2) {
+                }
+                else if (tmap->getWalkable(character.getCharacterX(), newY) == 2)
+                {
                     playing = false;
                     character.setCharacterPreviousTimeAnimation(current_seconds);
                 }
@@ -487,10 +462,10 @@ int main()
             if (c == GLFW_PRESS && character.getCharacterY() < tmap->getHeight() - 1 && characterElapsed > (0.16) && !animating)
             {
                 cout << "C" << endl;
-            
+
                 int newY = character.getCharacterY() + 1;
 
-                    cout << "C -> " << tmap->getWalkable(character.getCharacterX(), newY) << endl;
+                cout << "C -> " << tmap->getWalkable(character.getCharacterX(), newY) << endl;
                 if (tmap->getWalkable(character.getCharacterX(), newY) == 0)
                 {
                     cout << "C1" << endl;
@@ -498,7 +473,9 @@ int main()
                     character.setCharacterPreviousTimeAnimation(current_seconds);
                     character.setCharacterY(newY);
                     action = 1;
-                } else if (tmap->getWalkable(character.getCharacterX(), newY) == 2) {
+                }
+                else if (tmap->getWalkable(character.getCharacterX(), newY) == 2)
+                {
                     cout << "C2" << endl;
                     playing = false;
                     character.setCharacterPreviousTimeAnimation(current_seconds);
@@ -516,7 +493,9 @@ int main()
                     character.setCharacterPreviousTimeAnimation(current_seconds);
                     character.setCharacterX(newX);
                     action = 0;
-                } else if (tmap->getWalkable(newX, character.getCharacterY()) == 2) {
+                }
+                else if (tmap->getWalkable(newX, character.getCharacterY()) == 2)
+                {
                     playing = false;
                     character.setCharacterPreviousTimeAnimation(current_seconds);
                 }
@@ -537,7 +516,9 @@ int main()
                     character.setCharacterY(newY);
                     character.setCharacterX(newX);
                     action = 3;
-                } else if (tmap->getWalkable(newX, newY) == 2) {
+                }
+                else if (tmap->getWalkable(newX, newY) == 2)
+                {
                     playing = false;
                     character.setCharacterPreviousTimeAnimation(current_seconds);
                 }
@@ -557,7 +538,9 @@ int main()
                     character.setCharacterY(newY);
                     character.setCharacterX(newX);
                     action = 2;
-                } else if (tmap->getWalkable(newX, newY) == 2) {
+                }
+                else if (tmap->getWalkable(newX, newY) == 2)
+                {
                     playing = false;
                     character.setCharacterPreviousTimeAnimation(current_seconds);
                 }
@@ -576,7 +559,9 @@ int main()
                     character.setCharacterX(newX);
                     character.setCharacterY(newY);
                     action = 0;
-                } else if (tmap->getWalkable(newX, newY) == 2) {
+                }
+                else if (tmap->getWalkable(newX, newY) == 2)
+                {
                     playing = false;
                     character.setCharacterPreviousTimeAnimation(current_seconds);
                 }
@@ -595,19 +580,24 @@ int main()
                     character.setCharacterX(newX);
                     character.setCharacterY(newY);
                     action = 1;
-                } else if (tmap->getWalkable(newX, newY) == 2) {
+                }
+                else if (tmap->getWalkable(newX, newY) == 2)
+                {
                     playing = false;
                     character.setCharacterPreviousTimeAnimation(current_seconds);
                 }
                 // cout << "D" << endl;
             }
-           // cout << "Moedas coletadas: " << coinsCollected << endl;
-            //cout << "Total: " << tmap->getTotalCoins() << endl;
-            if (playing == false) {
+            
+            cout << "Moedas coletadas: " << coinsCollected << endl;
+            cout << "Total: " << tmap->getTotalCoins() << endl;
+            if (playing == false)
+            {
                 cout << "Morreu 0_0" << endl;
             }
 
-            if (coinsCollected == tmap->getTotalCoins()) {
+            if (coinsCollected == tmap->getTotalCoins())
+            {
                 playing = false;
             }
         }

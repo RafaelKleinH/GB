@@ -10,7 +10,7 @@ public:
     // Getters
     int getId() const { return id; }
     char* getFileName() const { return fileName; }
-    unsigned int getTexture() const { return texture; }
+     int getTexture() const { return texture; }
     float getOffsetX() const { return offsetx; }
     float getOffsetY() const { return offsety; }
     float getX() const { return x; }

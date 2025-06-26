@@ -3,6 +3,8 @@
 in vec2 texture_coords;
 
 uniform sampler2D sprite;
+
+// Crop X e Y da sprite
 uniform float offsetx;
 uniform float offsety;
 

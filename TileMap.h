@@ -96,21 +96,19 @@ public:
     float getXf() const { return xf; }
     float getYf() const { return yf; }
 
+    // Desenhar tile no mapa
     void computeDrawPosition(const int col, const int row, const float tw, const float th, float &targetx, float &targety) const
     {
         targetx = col * tw / 2 + row * tw / 2;
         targety = col * th / 2 - row * th / 2;
     }
 
+
+    // Limites seguindo pixeis do arquivo de config
     void setupXs(float windowsXMax, float tileXMax, float windowsYMax, float tileYMax)
     {
-
         float xValues = (windowsXMax == tileXMax) ? 1.0f : 2.0f * (tileXMax / windowsXMax) - 1.0f;
         float yValues = (windowsYMax == tileYMax) ? 1.0f : 2.0f * (tileYMax / windowsYMax) - 1.0f;
-        std::cout << "tileXMax: " << tileXMax << std::endl;
-        std::cout << "tileYMax: " << tileYMax << std::endl;
-        std::cout << "windowsXMax: " << windowsXMax << std::endl;
-        std::cout << "windowsYMax: " << windowsYMax << std::endl;
 
         xi = xValues == 1.0f ? -1.0f : -(1.0f - fabs(xValues));
         xf = xValues == 1.0f ? 1.0f : (1.0f - fabs(xValues));
@@ -128,10 +126,5 @@ public:
             yi = -yi;
             yf = fabs(yf);
         }
-
-        std::cout << "xi: " << xi << std::endl;
-        std::cout << "xf: " << xf << std::endl;
-        std::cout << "yi: " << yi << std::endl;
-        std::cout << "yf: " << yf << std::endl;
     }
 };
